@@ -57,3 +57,7 @@ CEP de referência: **89254-105** (Jaraguá do Sul). Configurável em `.env` (`R
 - **Komprão** (`www.komprao.com.br`): redireciona para `komprao.com.br` (WordPress). Falta liberar
   esse domínio para ver se há preços online ou só encartes.
 - **Condor**: `www.condor.com.br` e `condor.com.br` bloqueados no proxy; confirmar o domínio da loja online.
+- **Rancho Bom** (`www.ranchobom.com.br`): site institucional, sem loja online nem API. Preços só nos
+  tabloides (`/tabloides/<id>`), um "flipbook" de **imagens** – exigiria OCR, pouco confiável. As compras
+  online são pelo app "Bem Bom" (apps fora do escopo). Não incluído por enquanto.
+- Atacadão, Assaí, Carrefour e Breithaupt: descartados (sem loja física em Jaraguá do Sul).
