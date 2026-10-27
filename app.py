@@ -56,7 +56,6 @@ with aba_produtos:
                 "preco_alvo": st.column_config.NumberColumn("Preço-alvo", format="R$ %.2f"),
                 "ativo": "Ativo",
             },
-            width="stretch",
             key="editor_produtos",
         )
         c1, c2 = st.columns([1, 3])
@@ -102,7 +101,6 @@ with aba_precos:
                 "coletado_em": "Coletado em",
                 "oferta": "Oferta?",
             },
-            width="stretch",
             hide_index=True,
         )
 
@@ -124,4 +122,4 @@ with aba_historico:
             df["coletado_em"] = pd.to_datetime(df["coletado_em"])
             grafico = df.pivot_table(index="coletado_em", columns="loja", values="preco_unitario", aggfunc="min")
             st.line_chart(grafico)
-            st.dataframe(df.sort_values("coletado_em", ascending=False), width="stretch", hide_index=True)
+            st.dataframe(df.sort_values("coletado_em", ascending=False), hide_index=True)
