@@ -23,6 +23,8 @@ _UNI = r"(kg|mg|g|ml|litros?|lt|l|unidades|unid|und|un)\b"
 # "12x1L", "6 x 200ml", "c/12 1L" (multipack)
 _RE_MULTI = re.compile(rf"(\d+)\s*(?:x|un\s*x|c/)\s*{_NUM}\s*{_UNI}", re.I)
 _RE_SIMPLES = re.compile(rf"{_NUM}\s*{_UNI}", re.I)
+# "Pacote 250g 2 Unidades" (multipack com a contagem depois do tamanho)
+_RE_MULTI_DEPOIS = re.compile(rf"{_NUM}\s*{_UNI}.*?\b(\d+)\s*(?:unidades|unid|und)\b", re.I)
 
 
 def _num(txt: str) -> float:
@@ -35,6 +37,10 @@ def extrair_quantidade(titulo: str) -> tuple[float, str] | None:
     if m:
         unidade, fator = _FATORES[m.group(3).lower()]
         return int(m.group(1)) * _num(m.group(2)) * fator, unidade
+    m = _RE_MULTI_DEPOIS.search(titulo)
+    if m:
+        unidade, fator = _FATORES[m.group(2).lower()]
+        return int(m.group(3)) * _num(m.group(1)) * fator, unidade
     m = _RE_SIMPLES.search(titulo)
     if m:
         unidade, fator = _FATORES[m.group(2).lower()]

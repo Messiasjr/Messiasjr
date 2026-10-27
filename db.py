@@ -104,17 +104,26 @@ def salvar_oferta(con, produto_id: int, oferta: Oferta, preco_unitario=None,
     return cur.lastrowid
 
 
-def precos_atuais(con) -> list[sqlite3.Row]:
-    """Última oferta de cada (produto, loja)."""
-    return con.execute("""
-        SELECT p.nome AS produto, o.loja, o.titulo_encontrado, o.preco, o.preco_original,
-               o.preco_unitario, o.unidade_base, o.url, o.coletado_em
-        FROM ofertas o
-        JOIN produtos p ON p.id = o.produto_id
-        WHERE o.id IN (
-            SELECT MAX(id) FROM ofertas GROUP BY produto_id, loja
+def precos_atuais(con, todas=False) -> list[sqlite3.Row]:
+    """Ofertas do dia da última coleta de cada (produto, loja).
+
+    Por padrão só a mais barata por R$/unidade; com `todas=True`, todas as aceitas.
+    """
+    return con.execute(f"""
+        WITH ultima AS (
+            SELECT o.*, ROW_NUMBER() OVER (
+                       PARTITION BY o.produto_id, o.loja ORDER BY o.preco_unitario, o.preco) AS ordem
+            FROM ofertas o
+            WHERE date(o.coletado_em) = (
+                SELECT MAX(date(x.coletado_em)) FROM ofertas x
+                WHERE x.produto_id = o.produto_id AND x.loja = o.loja)
         )
-        ORDER BY p.nome, o.preco_unitario
+        SELECT p.nome AS produto, u.loja, u.titulo_encontrado, u.preco, u.preco_original,
+               u.preco_unitario, u.unidade_base, u.url, u.coletado_em
+        FROM ultima u
+        JOIN produtos p ON p.id = u.produto_id
+        {"" if todas else "WHERE u.ordem = 1"}
+        ORDER BY p.nome, u.preco_unitario
     """).fetchall()
 
 

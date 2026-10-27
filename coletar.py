@@ -7,6 +7,8 @@ import logging
 import re
 import unicodedata
 
+from dotenv import load_dotenv
+
 import db
 from fontes import FONTES
 from unidades import extrair_quantidade, normalizar
@@ -17,6 +19,7 @@ logging.basicConfig(
     handlers=[logging.FileHandler("coleta.log", encoding="utf-8"), logging.StreamHandler()],
 )
 log = logging.getLogger("coleta")
+load_dotenv()
 
 
 def _sem_acento(txt: str) -> str:

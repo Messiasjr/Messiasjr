@@ -16,7 +16,7 @@ Fora do escopo: aplicativos de celular e redes sociais.
 1. Abra cada site, faça uma busca manual (ex.: "leite integral") e inspecione as requisições de rede.
 2. Se o site tiver API JSON pública (por exemplo, o padrão VTEX `/api/catalog_system/pub/products/search?ft=...`), use-a em vez de raspar HTML.
 3. Para o Mercado Livre, verifique se a API oficial de busca funciona sem login. Se não funcionar, use a página de busca.
-4. Confirme o CEP/loja de Jaraguá do Sul (CEP 89250-000) quando o preço depender da região.
+4. Confirme o CEP/loja de Jaraguá do Sul (CEP 89254-105) quando o preço depender da região.
 5. Documente em `docs/fontes.md` como cada fonte foi resolvida.
 
 ## Stack

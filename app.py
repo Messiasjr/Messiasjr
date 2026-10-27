@@ -56,7 +56,7 @@ with aba_produtos:
                 "preco_alvo": st.column_config.NumberColumn("Preço-alvo", format="R$ %.2f"),
                 "ativo": "Ativo",
             },
-            use_container_width=True,
+            width="stretch",
             key="editor_produtos",
         )
         c1, c2 = st.columns([1, 3])
@@ -80,8 +80,9 @@ with aba_produtos:
 
 # ---------------- Preços atuais ----------------
 with aba_precos:
+    todas = st.toggle("Mostrar todas as opções encontradas (não só a mais barata por loja)")
     with db.conectar() as con:
-        atuais = [dict(r) for r in db.precos_atuais(con)]
+        atuais = [dict(r) for r in db.precos_atuais(con, todas=todas)]
     if not atuais:
         st.info("Ainda não há preços coletados. Rode `python coletar.py`.")
     else:
@@ -101,7 +102,7 @@ with aba_precos:
                 "coletado_em": "Coletado em",
                 "oferta": "Oferta?",
             },
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -123,4 +124,4 @@ with aba_historico:
             df["coletado_em"] = pd.to_datetime(df["coletado_em"])
             grafico = df.pivot_table(index="coletado_em", columns="loja", values="preco_unitario", aggfunc="min")
             st.line_chart(grafico)
-            st.dataframe(df.sort_values("coletado_em", ascending=False), use_container_width=True, hide_index=True)
+            st.dataframe(df.sort_values("coletado_em", ascending=False), width="stretch", hide_index=True)

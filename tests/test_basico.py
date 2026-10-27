@@ -14,6 +14,8 @@ from unidades import extrair_quantidade, preco_por_unidade
     ("Café Melitta 500g", (0.5, "kg")),
     ("Iogurte 6 x 170ml", (pytest.approx(1.02), "L")),
     ("Óleo de Soja 900 ml", (pytest.approx(0.9), "L")),
+    ("Feijão Cozido Vapza Caixa 500g 2 Unidades", (1.0, "kg")),
+    ("Leite UHT Integral Tirol Caixa com Tampa 1l", (1.0, "L")),
 ])
 def test_extrair_quantidade(titulo, esperado):
     assert extrair_quantidade(titulo) == esperado
