@@ -5,6 +5,7 @@ Rodar: python coletar.py
 
 import logging
 import re
+import statistics
 import unicodedata
 
 from dotenv import load_dotenv
@@ -47,6 +48,20 @@ def corresponde(produto, titulo: str) -> tuple[bool, float | None, str | None]:
     return True, qtd, unidade
 
 
+def descartar_implausiveis(aceitas: list, loja: str, referencia: list[float] = ()) -> list:
+    """Remove R$/unidade abaixo da metade da mediana do produto (todas as lojas, últimos 30 dias,
+    mais esta busca). Quase sempre é quantidade lida errada no título (ex.: "Arroz 1kg, Pack com
+    30 Unidades" por R$ 20) e geraria falso "menor preço"."""
+    valores = [pu for _, pu, _ in aceitas] + list(referencia)
+    if len(valores) < 3:
+        return aceitas
+    piso = statistics.median(valores) / 2
+    for oferta, pu, _ in aceitas:
+        if pu < piso:
+            log.warning("Implausível [%s]: %s (R$ %.2f/unid.)", loja, oferta.titulo, pu)
+    return [a for a in aceitas if a[1] >= piso]
+
+
 def coletar() -> None:
     db.inicializar()
     with db.conectar() as con:
@@ -60,16 +75,19 @@ def coletar() -> None:
             except Exception:
                 log.exception("Falha em %s ao buscar '%s'", fonte.NOME, produto["termo_busca"])
                 continue
-            aceitas = 0
+            aceitas = []
+            for oferta in ofertas:
+                ok, qtd, unidade = corresponde(produto, oferta.titulo)
+                if not ok:
+                    log.debug("Descartado [%s]: %s", fonte.NOME, oferta.titulo)
+                    continue
+                aceitas.append((oferta, round(oferta.preco / qtd, 4), unidade))
             with db.conectar() as con:
-                for oferta in ofertas:
-                    ok, qtd, unidade = corresponde(produto, oferta.titulo)
-                    if not ok:
-                        log.debug("Descartado [%s]: %s", fonte.NOME, oferta.titulo)
-                        continue
-                    db.salvar_oferta(con, produto["id"], oferta, round(oferta.preco / qtd, 4), unidade)
-                    aceitas += 1
-            log.info("%s | %s: %d resultados, %d aceitos", fonte.NOME, produto["nome"], len(ofertas), aceitas)
+                referencia = db.precos_unitarios_recentes(con, produto["id"])
+                aceitas = descartar_implausiveis(aceitas, fonte.NOME, referencia)
+                for oferta, preco_unitario, unidade in aceitas:
+                    db.salvar_oferta(con, produto["id"], oferta, preco_unitario, unidade)
+            log.info("%s | %s: %d resultados, %d aceitos", fonte.NOME, produto["nome"], len(ofertas), len(aceitas))
 
 
 if __name__ == "__main__":

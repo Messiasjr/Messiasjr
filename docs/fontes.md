@@ -7,8 +7,8 @@ CEP de referência: **89254-105** (Jaraguá do Sul). Configurável em `.env` (`R
 | Giassi | ✅ etapa 2 | API VTEX pública (catálogo + simulação de carrinho) |
 | Angeloni | ✅ etapa 3 | API VTEX pública (mesmo cliente do Giassi) |
 | Cooper | ✅ etapa 3 | API VTEX pública, 2 lojas de Jaraguá |
-| Mercado Livre | pendente (etapa 4) | — |
-| Amazon | pendente (etapa 4) | — |
+| Mercado Livre | ⛔ bloqueado | API exige token; página de busca exige verificação de conta |
+| Amazon | ✅ etapa 4 | Página de busca (HTML) |
 
 ## Giassi (`fontes/giassi.py`, via `fontes/vtex.py`)
 
@@ -44,18 +44,33 @@ CEP de referência: **89254-105** (Jaraguá do Sul). Configurável em `.env` (`R
 - "N Unidades" depois do tamanho é ambíguo: "Arroz Chinês Pacote 1kg 8 Unidades" (R$ 4,99) são
   8 saquinhos dentro de 1 kg, já "Vapza 500g 2 Unidades" são 2 pacotes. Não é multiplicado.
 
-## Observações preliminares das demais (a confirmar na etapa 4)
+## Amazon (`fontes/amazon.py`)
 
-- Mercado Livre: `api.mercadolibre.com/sites/MLB/search` respondeu 403 sem login → usar página de busca.
-- Amazon: página de busca respondeu 503 para o User-Agent do robô.
+- Sem API pública de preços: lê `https://www.amazon.com.br/s?k=<termo>` com `httpx` + `selectolax`
+  (`div[data-component-type="s-search-result"]`). Preço: `span.a-price:not(.a-text-price) .a-offscreen`;
+  preço "de": `span.a-price[data-a-strike="true"] .a-offscreen` (a outra `a-text-price` é o R$/kg).
+- Preço **nacional**, sem frete e sem relação com o CEP.
+- Responde 503 com frequência (limite de acesso). Até 3 tentativas (pausas de 10 s e 20 s);
+  se continuar, a busca falha no log e as demais seguem. Captcha → falha registrada, sem contorno.
+- Títulos trazem kits: "(Embalagem com 5)", "Pack com 6 Unidades", "c/ 6UNID.", "3 x … 500g" são
+  multiplicados. Vendedores às vezes anunciam errado ("Arroz 1kg, Pack com 30 Unidades" por R$ 20,20);
+  por isso a coleta descarta R$/unidade abaixo da metade da mediana do produto (todas as lojas, 30 dias).
+
+## Mercado Livre
+
+- `api.mercadolibre.com/sites/MLB/search` → 403 `forbidden` sem token.
+- `lista.mercadolivre.com.br/<termo>` → redireciona para `/gz/account-verification` (verificação anti-robô).
+- Pelo CLAUDE.md não se contorna login/captcha. Alternativa legítima: API oficial com credenciais de um
+  app cadastrado em developers.mercadolivre.com.br (não testado).
 
 ## Fontes extras em investigação
 
-- **Fort Atacadista** (`www.fortatacadista.com.br`): plataforma própria (não VTEX). Tem loja em
-  Jaraguá (`slug: jaragua-sul`, `storeId: 1627`). Os produtos não vêm no HTML; o site busca em
-  `api.fortatacadista.com.br` → domínio precisa ser liberado.
-- **Komprão** (`www.komprao.com.br`): redireciona para `komprao.com.br` (WordPress). Falta liberar
-  esse domínio para ver se há preços online ou só encartes.
+- **Fort Atacadista** (`www.fortatacadista.com.br`): plataforma "osuper" (GraphQL em
+  `api.fortatacadista.com.br/graphql`, introspecção desativada). Loja de Jaraguá: `jaragua-sul`,
+  `storeId 1627`. Para descobrir a consulta de busca que o próprio site usa, falta liberar
+  `cdn.osuper.com.br` (JavaScript do site) e observar a requisição no navegador.
+- **Komprão** (`komprao.com.br`, WordPress): tem loja em Jaraguá, mas sem loja online. As ofertas
+  (`/ofertas/jaragua-do-sul/`) são um encarte no Issuu (imagens), desatualizado ("12 a 16/01"). Não incluído.
 - **Condor**: `www.condor.com.br` e `condor.com.br` bloqueados no proxy; confirmar o domínio da loja online.
 - **Rancho Bom** (`www.ranchobom.com.br`): site institucional, sem loja online nem API. Preços só nos
   tabloides (`/tabloides/<id>`), um "flipbook" de **imagens** – exigiria OCR, pouco confiável. As compras

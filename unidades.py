@@ -23,7 +23,11 @@ _UNI = r"(kg|mg|g|ml|litros?|lt|l|unidades|unid|und|un)\b"
 # "12x1L", "6 x 200ml", "c/12 1L" (multipack)
 _RE_MULTI = re.compile(rf"(\d+)\s*(?:x|un\s*x|c/)\s*{_NUM}\s*{_UNI}", re.I)
 _RE_SIMPLES = re.compile(rf"{_NUM}\s*{_UNI}", re.I)
-# "N Unidades" depois do tamanho é ambíguo ("Arroz 1kg 8 Unidades" = 8 saquinhos dentro de 1kg;
+# "1L (Embalagem com 5)", "1L c/ 6UNID.", "Kit com 3", "Pack com 12": contagem explícita de pacotes
+_RE_PACOTE = re.compile(
+    r"\b(?:embalagem com|kit com|pack com|pacote com|caixa com)\s*(\d+)|\bc/\s*(\d+)\s*(?:unid\w*|und|un)\b", re.I)
+_RE_PREFIXO = re.compile(r"\s*(\d+)\s*x\s+\D", re.I)
+# "N Unidades" sozinho depois do tamanho é ambíguo ("Arroz 1kg 8 Unidades" = 8 saquinhos dentro de 1kg;
 # "Vapza 500g 2 Unidades" = 2 pacotes). Não é multiplicado: errar para cima evita falso "menor preço".
 
 
@@ -40,7 +44,10 @@ def extrair_quantidade(titulo: str) -> tuple[float, str] | None:
     m = _RE_SIMPLES.search(titulo)
     if m:
         unidade, fator = _FATORES[m.group(2).lower()]
-        return _num(m.group(1)) * fator, unidade
+        pacotes = _RE_PACOTE.search(titulo[m.end():])
+        prefixo = _RE_PREFIXO.match(titulo)  # "3 x Feijão Carioca 500g"
+        n = int(pacotes.group(1) or pacotes.group(2)) if pacotes else int(prefixo.group(1)) if prefixo else 1
+        return _num(m.group(1)) * fator * n, unidade
     return None
 
 

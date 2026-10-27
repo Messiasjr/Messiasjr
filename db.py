@@ -127,6 +127,14 @@ def precos_atuais(con, todas=False) -> list[sqlite3.Row]:
     """).fetchall()
 
 
+def precos_unitarios_recentes(con, produto_id: int, dias: int = 30) -> list[float]:
+    return [r[0] for r in con.execute(
+        "SELECT preco_unitario FROM ofertas WHERE produto_id = ? AND preco_unitario IS NOT NULL"
+        " AND coletado_em >= datetime('now', 'localtime', ?)",
+        (produto_id, f"-{dias} days"),
+    )]
+
+
 def historico(con, produto_id: int) -> list[sqlite3.Row]:
     return con.execute(
         "SELECT loja, preco, preco_original, preco_unitario, titulo_encontrado, url, coletado_em"
