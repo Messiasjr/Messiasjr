@@ -48,3 +48,12 @@ CEP de referência: **89254-105** (Jaraguá do Sul). Configurável em `.env` (`R
 
 - Mercado Livre: `api.mercadolibre.com/sites/MLB/search` respondeu 403 sem login → usar página de busca.
 - Amazon: página de busca respondeu 503 para o User-Agent do robô.
+
+## Fontes extras em investigação
+
+- **Fort Atacadista** (`www.fortatacadista.com.br`): plataforma própria (não VTEX). Tem loja em
+  Jaraguá (`slug: jaragua-sul`, `storeId: 1627`). Os produtos não vêm no HTML; o site busca em
+  `api.fortatacadista.com.br` → domínio precisa ser liberado.
+- **Komprão** (`www.komprao.com.br`): redireciona para `komprao.com.br` (WordPress). Falta liberar
+  esse domínio para ver se há preços online ou só encartes.
+- **Condor**: `www.condor.com.br` e `condor.com.br` bloqueados no proxy; confirmar o domínio da loja online.
