@@ -3,10 +3,18 @@
 Rodar: streamlit run app.py
 """
 
+import subprocess
+import sys
+import time
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
 import db
+
+PASTA = Path(__file__).resolve().parent
+TRAVA = PASTA / ".coleta.lock"
 
 UNIDADES = ["kg", "g", "L", "ml", "un"]
 
@@ -14,6 +22,40 @@ st.set_page_config(page_title="Radar de Preços – Jaraguá do Sul", page_icon=
 db.inicializar()
 
 st.title("🛒 Radar de Preços – Jaraguá do Sul")
+
+
+def coleta_em_andamento() -> bool:
+    # trava com mais de 30 min é de uma coleta interrompida
+    return TRAVA.exists() and time.time() - TRAVA.stat().st_mtime < 30 * 60
+
+
+with st.sidebar:
+    st.header("Coleta de preços")
+    st.caption("Consulta todas as lojas para os produtos ativos. Leva ~1 min por produto.")
+    if st.button("🔄 Coletar preços agora", type="primary", disabled=coleta_em_andamento()):
+        TRAVA.touch()
+        try:
+            with st.status("Coletando preços…", expanded=True) as status:
+                processo = subprocess.Popen(
+                    [sys.executable, "coletar.py"], cwd=PASTA, text=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                )
+                for linha in processo.stdout:
+                    # mostra só o resumo de cada busca e as falhas, não cada requisição HTTP
+                    partes = linha.split(" ", 3)  # data, hora, nível, mensagem
+                    if len(partes) < 4 or partes[2] not in {"INFO", "WARNING", "ERROR"}:
+                        continue
+                    if partes[2] != "INFO":
+                        st.text("⚠️ " + partes[3].strip())
+                    elif " | " in partes[3]:
+                        st.text(partes[3].strip())
+                ok = processo.wait() == 0
+                status.update(label="Coleta concluída" if ok else "Coleta terminou com erro",
+                              state="complete" if ok else "error")
+        finally:
+            TRAVA.unlink(missing_ok=True)
+    elif coleta_em_andamento():
+        st.info("Já há uma coleta em andamento.")
 aba_produtos, aba_precos, aba_historico = st.tabs(["Produtos", "Preços atuais", "Histórico"])
 
 # ---------------- Produtos ----------------

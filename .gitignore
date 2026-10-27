@@ -5,3 +5,4 @@ __pycache__/
 radar.db
 *.log
 .pytest_cache/
+.coleta.lock
