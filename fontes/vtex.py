@@ -23,13 +23,17 @@ def cep() -> str:
 
 
 class LojaVtex:
-    def __init__(self, nome: str, base_url: str, max_resultados: int = 20, sc: int = 1):
+    def __init__(self, nome: str, base_url: str, max_resultados: int = 20, sc: int = 1,
+                 filtro_vendedor: str | None = None):
+        """`filtro_vendedor`: quando o CEP devolve várias lojas, usa só as que contêm esse texto
+        no id (ex.: "jaragua"); sem filtro, usa a primeira."""
         self.nome = nome
         self.base_url = base_url.rstrip("/")
         self.max_resultados = max_resultados
         self.sc = sc
+        self.filtro_vendedor = filtro_vendedor
         self.limitador = Limitador()
-        self._vendedor: str | None = None
+        self._vendedores: list[str] | None = None
         self._cliente = httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30, follow_redirects=True)
 
     def _get(self, caminho: str, **params):
@@ -45,16 +49,20 @@ class LojaVtex:
         r.raise_for_status()
         return r.json()
 
-    def vendedor_regional(self) -> str | None:
-        """Vendedor (loja física) que atende o CEP configurado."""
-        if self._vendedor is None:
+    def vendedores_regionais(self) -> list[str]:
+        """Vendedores (lojas físicas) que atendem o CEP configurado."""
+        if self._vendedores is None:
             regioes = self._get("/api/checkout/pub/regions", country="BRA", postalCode=cep())
-            vendedores = regioes[0]["sellers"] if regioes else []
-            if not vendedores:
+            ids = [v["id"] for v in (regioes[0]["sellers"] if regioes else [])]
+            if self.filtro_vendedor:
+                ids = [i for i in ids if self.filtro_vendedor in i]
+            elif ids:
+                ids = ids[:1]
+            if not ids:
                 raise RuntimeError(f"{self.nome}: nenhuma loja atende o CEP {cep()}")
-            self._vendedor = vendedores[0]["id"]
-            log.info("%s: CEP %s atendido por %s", self.nome, cep(), self._vendedor)
-        return self._vendedor
+            self._vendedores = ids
+            log.info("%s: CEP %s atendido por %s", self.nome, cep(), ", ".join(ids))
+        return self._vendedores
 
     def buscar(self, termo: str) -> list[Oferta]:
         produtos = self._get(
@@ -69,19 +77,22 @@ class LojaVtex:
         if not itens:
             return []
 
-        vendedor = self.vendedor_regional()
-        simulacao = self._post(
-            "/api/checkout/pub/orderForms/simulation",
-            {"items": [{"id": sku, "quantity": 1, "seller": vendedor} for sku in itens],
-             "postalCode": cep(), "country": "BRA"},
-            sc=self.sc,
-        )
-        ofertas = []
-        for item in simulacao.get("items", []):
-            if item.get("availability") != "available" or item["id"] not in itens:
-                continue
-            titulo, url = itens[item["id"]]
-            preco = (item.get("sellingPrice") or item["price"]) / 100
-            de = (item.get("listPrice") or 0) / 100
-            ofertas.append(Oferta(self.nome, titulo, preco, url, de if de > preco else None))
-        return ofertas
+        # com várias lojas na cidade, fica com o menor preço disponível de cada SKU
+        melhores: dict[str, Oferta] = {}
+        for vendedor in self.vendedores_regionais():
+            simulacao = self._post(
+                "/api/checkout/pub/orderForms/simulation",
+                {"items": [{"id": sku, "quantity": 1, "seller": vendedor} for sku in itens],
+                 "postalCode": cep(), "country": "BRA"},
+                sc=self.sc,
+            )
+            for item in simulacao.get("items", []):
+                if item.get("availability") != "available" or item["id"] not in itens:
+                    continue
+                titulo, url = itens[item["id"]]
+                preco = (item.get("sellingPrice") or item["price"]) / 100
+                de = (item.get("listPrice") or 0) / 100
+                atual = melhores.get(item["id"])
+                if atual is None or preco < atual.preco:
+                    melhores[item["id"]] = Oferta(self.nome, titulo, preco, url, de if de > preco else None)
+        return list(melhores.values())
